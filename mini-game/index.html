@@ -12,14 +12,20 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            font-family: 'Courier New', monospace;
+            background: #1a4a6d;
+            background-image: 
+                repeating-linear-gradient(45deg, #0d2b45 0px, #0d2b45 64px, #1a4a6d 64px, #1a4a6d 128px),
+                repeating-linear-gradient(-45deg, #1a4a6d 0px, #1a4a6d 64px, #0d2b45 64px, #0d2b45 128px);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             color: #fff;
             overflow: hidden;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
         }
 
         .game-container {
@@ -36,11 +42,14 @@
         }
 
         #gameCanvas {
-            border: 4px solid #2c3e50;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            background: #1a1a2e;
+            border: 4px solid #000;
+            border-radius: 0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            background: #000;
             display: block;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
         }
 
         .sidebar {
@@ -51,20 +60,23 @@
         }
 
         .panel {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.7);
             padding: 20px;
-            border-radius: 10px;
-            backdrop-filter: blur(10px);
+            border-radius: 0;
+            border: 3px solid #444;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
         }
 
         .panel h2 {
             font-size: 1.2em;
             margin-bottom: 15px;
-            color: #ffd700;
+            color: #ffff00;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            border-bottom: 2px solid #ffd700;
+            letter-spacing: 3px;
+            border-bottom: 2px solid #ffff00;
             padding-bottom: 8px;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
         }
 
         .stat {
@@ -82,6 +94,7 @@
             color: #fff;
             font-weight: bold;
             font-size: 1.3em;
+            text-shadow: 2px 2px 0 #000;
         }
 
         .controls {
@@ -224,8 +237,8 @@
             ROWS: 13,
             CELL_SIZE: 48,
             BOARD_PADDING: 24,
-            COLORS: ['#ff4757', '#3742fa', '#2ed573', '#0fbcf9', '#a55eea', '#ff6348'],
-            COLOR_NAMES: ['red', 'blue', 'green', 'cyan', 'purple', 'pink'],
+            COLORS: ['#e63946', '#4361ee', '#2a9d8f', '#e9c46a', '#9d4edd', '#f77f00'],
+            COLOR_NAMES: ['red', 'blue', 'green', 'yellow', 'purple', 'orange'],
             INITIAL_DROP_SPEED: 800,
             DROP_SPEED_DECREASE: 50,
             SOFT_DROP_SPEED: 50,
@@ -473,12 +486,12 @@
             }
 
             clear() {
-                this.ctx.fillStyle = '#0f0f1e';
+                this.ctx.fillStyle = '#000';
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             }
 
             drawGrid() {
-                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                this.ctx.strokeStyle = 'rgba(64, 64, 64, 0.3)';
                 this.ctx.lineWidth = 1;
 
                 for (let row = 0; row <= CONFIG.ROWS; row++) {
@@ -499,61 +512,191 @@
             }
 
             drawGem(row, col, colorIndex, alpha = 1) {
-                const x = CONFIG.BOARD_PADDING + col * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2;
-                const y = CONFIG.BOARD_PADDING + row * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2;
-                const radius = CONFIG.CELL_SIZE * 0.38;
+                const baseX = CONFIG.BOARD_PADDING + col * CONFIG.CELL_SIZE;
+                const baseY = CONFIG.BOARD_PADDING + row * CONFIG.CELL_SIZE;
+                const centerX = baseX + CONFIG.CELL_SIZE / 2;
+                const centerY = baseY + CONFIG.CELL_SIZE / 2;
+                const size = CONFIG.CELL_SIZE * 0.8;
 
                 const color = GemColors.getColor(colorIndex);
-
-                // Shadow
-                this.ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-                this.ctx.shadowBlur = 10;
-                this.ctx.shadowOffsetX = 2;
-                this.ctx.shadowOffsetY = 2;
-
-                // Gem body with gradient
-                const gradient = this.ctx.createRadialGradient(
-                    x - radius * 0.3, y - radius * 0.3, radius * 0.1,
-                    x, y, radius
-                );
-                
-                gradient.addColorStop(0, this.lightenColor(color, 40));
-                gradient.addColorStop(0.7, color);
-                gradient.addColorStop(1, this.darkenColor(color, 20));
-
                 this.ctx.globalAlpha = alpha;
-                this.ctx.fillStyle = gradient;
-                this.ctx.beginPath();
-                this.ctx.arc(x, y, radius, 0, Math.PI * 2);
-                this.ctx.fill();
 
-                // Reset shadow
-                this.ctx.shadowColor = 'transparent';
-                this.ctx.shadowBlur = 0;
-                this.ctx.shadowOffsetX = 0;
-                this.ctx.shadowOffsetY = 0;
+                // Disable smoothing for pixelated look
+                this.ctx.imageSmoothingEnabled = false;
 
-                // Highlight
-                const highlightGradient = this.ctx.createRadialGradient(
-                    x - radius * 0.4, y - radius * 0.4, 0,
-                    x - radius * 0.4, y - radius * 0.4, radius * 0.5
-                );
-                highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-                highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-                this.ctx.fillStyle = highlightGradient;
-                this.ctx.beginPath();
-                this.ctx.arc(x - radius * 0.25, y - radius * 0.25, radius * 0.4, 0, Math.PI * 2);
-                this.ctx.fill();
-
-                // Border
-                this.ctx.strokeStyle = this.darkenColor(color, 30);
-                this.ctx.lineWidth = 2;
-                this.ctx.beginPath();
-                this.ctx.arc(x, y, radius, 0, Math.PI * 2);
-                this.ctx.stroke();
+                // Draw different gem shapes based on color
+                switch(colorIndex) {
+                    case 0: // Red - Round gem
+                        this.drawPixelatedCircleGem(centerX, centerY, size, '#e63946', '#ff6b7a', '#b02a37');
+                        break;
+                    case 1: // Blue - Rectangular gem
+                        this.drawPixelatedRectGem(centerX, centerY, size, '#4361ee', '#6e8efb', '#2541b2');
+                        break;
+                    case 2: // Green - Octagonal gem
+                        this.drawPixelatedOctagonGem(centerX, centerY, size, '#2a9d8f', '#52b7ab', '#1f7a6f');
+                        break;
+                    case 3: // Yellow - Diamond gem
+                        this.drawPixelatedDiamondGem(centerX, centerY, size, '#e9c46a', '#ffd97d', '#c9a44a');
+                        break;
+                    case 4: // Purple - Oval gem
+                        this.drawPixelatedOvalGem(centerX, centerY, size, '#9d4edd', '#b97aff', '#7b3eb8');
+                        break;
+                    case 5: // Orange - Hexagonal gem
+                        this.drawPixelatedHexagonGem(centerX, centerY, size, '#f77f00', '#ff9f40', '#d46800');
+                        break;
+                }
 
                 this.ctx.globalAlpha = 1;
+                this.ctx.imageSmoothingEnabled = true;
+            }
+
+            drawPixelatedCircleGem(x, y, size, mainColor, lightColor, darkColor) {
+                const pixelSize = 4;
+                const radius = size / 2;
+                
+                // Draw pixelated circle with shading
+                for (let py = -radius; py < radius; py += pixelSize) {
+                    for (let px = -radius; px < radius; px += pixelSize) {
+                        const dist = Math.sqrt(px * px + py * py);
+                        if (dist < radius) {
+                            // Determine color based on position
+                            let color;
+                            if (px < -radius/3 && py < -radius/3) {
+                                color = lightColor; // highlight
+                            } else if (px > radius/4 || py > radius/4) {
+                                color = darkColor; // shadow
+                            } else {
+                                color = mainColor; // main color
+                            }
+                            
+                            this.ctx.fillStyle = color;
+                            this.ctx.fillRect(x + px, y + py, pixelSize, pixelSize);
+                        }
+                    }
+                }
+            }
+
+            drawPixelatedRectGem(x, y, size, mainColor, lightColor, darkColor) {
+                const pixelSize = 4;
+                const halfSize = size / 2;
+                
+                // Main body
+                this.ctx.fillStyle = mainColor;
+                this.ctx.fillRect(x - halfSize, y - halfSize, size, size);
+                
+                // Highlights (top-left)
+                this.ctx.fillStyle = lightColor;
+                for (let i = 0; i < halfSize; i += pixelSize) {
+                    this.ctx.fillRect(x - halfSize + i, y - halfSize, pixelSize, pixelSize * 2);
+                    this.ctx.fillRect(x - halfSize, y - halfSize + i, pixelSize * 2, pixelSize);
+                }
+                
+                // Shadows (bottom-right)
+                this.ctx.fillStyle = darkColor;
+                for (let i = 0; i < halfSize; i += pixelSize) {
+                    this.ctx.fillRect(x + i, y + halfSize - pixelSize, pixelSize, pixelSize);
+                    this.ctx.fillRect(x + halfSize - pixelSize, y + i, pixelSize, pixelSize);
+                }
+            }
+
+            drawPixelatedOctagonGem(x, y, size, mainColor, lightColor, darkColor) {
+                const pixelSize = 4;
+                const halfSize = size / 2;
+                const cornerCut = size / 4;
+                
+                this.ctx.fillStyle = mainColor;
+                
+                // Draw octagon using rectangles
+                this.ctx.fillRect(x - halfSize + cornerCut, y - halfSize, size - cornerCut * 2, size);
+                this.ctx.fillRect(x - halfSize, y - halfSize + cornerCut, size, size - cornerCut * 2);
+                
+                // Highlights
+                this.ctx.fillStyle = lightColor;
+                this.ctx.fillRect(x - halfSize + cornerCut, y - halfSize, size - cornerCut * 2, pixelSize * 2);
+                this.ctx.fillRect(x - halfSize + cornerCut, y - halfSize, pixelSize * 2, cornerCut);
+                
+                // Shadows
+                this.ctx.fillStyle = darkColor;
+                this.ctx.fillRect(x - halfSize + cornerCut, y + halfSize - pixelSize * 2, size - cornerCut * 2, pixelSize * 2);
+                this.ctx.fillRect(x + halfSize - pixelSize * 2, y, pixelSize * 2, halfSize - cornerCut);
+            }
+
+            drawPixelatedDiamondGem(x, y, size, mainColor, lightColor, darkColor) {
+                const pixelSize = 4;
+                const halfSize = size / 2;
+                
+                // Draw diamond shape using blocks
+                for (let row = 0; row < size; row += pixelSize) {
+                    const offsetY = row - halfSize;
+                    const width = halfSize - Math.abs(offsetY);
+                    
+                    let color;
+                    if (offsetY < -halfSize/3) {
+                        color = lightColor;
+                    } else if (offsetY > halfSize/3) {
+                        color = darkColor;
+                    } else {
+                        color = mainColor;
+                    }
+                    
+                    this.ctx.fillStyle = color;
+                    this.ctx.fillRect(x - width, y + offsetY, width * 2, pixelSize);
+                }
+            }
+
+            drawPixelatedOvalGem(x, y, size, mainColor, lightColor, darkColor) {
+                const pixelSize = 4;
+                const radiusX = size / 2;
+                const radiusY = size / 2.5;
+                
+                for (let py = -radiusY; py < radiusY; py += pixelSize) {
+                    for (let px = -radiusX; px < radiusX; px += pixelSize) {
+                        const normalized = (px*px)/(radiusX*radiusX) + (py*py)/(radiusY*radiusY);
+                        if (normalized < 1) {
+                            let color;
+                            if (px < -radiusX/3 && py < -radiusY/3) {
+                                color = lightColor;
+                            } else if (px > radiusX/4 || py > radiusY/4) {
+                                color = darkColor;
+                            } else {
+                                color = mainColor;
+                            }
+                            
+                            this.ctx.fillStyle = color;
+                            this.ctx.fillRect(x + px, y + py, pixelSize, pixelSize);
+                        }
+                    }
+                }
+            }
+
+            drawPixelatedHexagonGem(x, y, size, mainColor, lightColor, darkColor) {
+                const pixelSize = 4;
+                const halfSize = size / 2;
+                const third = size / 3;
+                
+                // Draw hexagon-like shape
+                for (let row = 0; row < size; row += pixelSize) {
+                    const offsetY = row - halfSize;
+                    let width;
+                    
+                    if (Math.abs(offsetY) < third) {
+                        width = halfSize;
+                    } else {
+                        width = halfSize - (Math.abs(offsetY) - third);
+                    }
+                    
+                    let color;
+                    if (offsetY < -third) {
+                        color = lightColor;
+                    } else if (offsetY > third) {
+                        color = darkColor;
+                    } else {
+                        color = mainColor;
+                    }
+                    
+                    this.ctx.fillStyle = color;
+                    this.ctx.fillRect(x - width, y + offsetY, width * 2, pixelSize);
+                }
             }
 
             drawBoard(board) {
@@ -576,19 +719,27 @@
             }
 
             drawMatchAnimation(matches, progress) {
-                const scale = 1 - progress;
                 const alpha = 1 - progress;
+                const pixelSize = 4;
 
                 for (const match of matches) {
                     const x = CONFIG.BOARD_PADDING + match.col * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2;
                     const y = CONFIG.BOARD_PADDING + match.row * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2;
-                    const radius = CONFIG.CELL_SIZE * 0.38 * scale;
-
+                    
+                    // Draw sparkle effect
                     this.ctx.globalAlpha = alpha;
-                    this.ctx.fillStyle = '#fff';
-                    this.ctx.beginPath();
-                    this.ctx.arc(x, y, radius * 1.2, 0, Math.PI * 2);
-                    this.ctx.fill();
+                    
+                    // Random sparkles
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i / 8) * Math.PI * 2 + progress * Math.PI;
+                        const dist = 15 * progress;
+                        const sx = x + Math.cos(angle) * dist;
+                        const sy = y + Math.sin(angle) * dist;
+                        
+                        this.ctx.fillStyle = i % 2 === 0 ? '#ffff00' : '#ffffff';
+                        this.ctx.fillRect(sx - pixelSize/2, sy - pixelSize/2, pixelSize, pixelSize);
+                    }
+                    
                     this.ctx.globalAlpha = 1;
                 }
             }
