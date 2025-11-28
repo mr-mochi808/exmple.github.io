@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Columns - Classic Match-3 Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .game-container {
+            display: flex;
+            gap: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .canvas-wrapper {
+            position: relative;
+        }
+
+        #gameCanvas {
+            border: 4px solid #2c3e50;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            background: #1a1a2e;
+            display: block;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 200px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel h2 {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            color: #ffd700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 2px solid #ffd700;
+            padding-bottom: 8px;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+
+        .stat-label {
+            color: #aaa;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-weight: bold;
+            font-size: 1.3em;
+        }
+
+        .controls {
+            font-size: 0.9em;
+            line-height: 1.8;
+        }
+
+        .controls kbd {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-weight: bold;
+            display: inline-block;
+            margin: 2px;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+        }
+
+        .overlay.active {
+            display: flex;
+        }
+
+        .overlay h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+        }
+
+        .overlay p {
+            font-size: 1.5em;
+            margin: 10px 0;
+        }
+
+        .overlay button {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .overlay button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+        }
+
+        .overlay button:active {
+            transform: scale(0.98);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .game-over-text {
+            animation: pulse 2s infinite;
+            color: #ff6b6b;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas" width="360" height="624"></canvas>
+            <div id="overlay" class="overlay">
+                <h1 class="game-over-text">GAME OVER</h1>
+                <p>Final Score: <span id="finalScore">0</span></p>
+                <p>Level Reached: <span id="finalLevel">1</span></p>
+                <button id="restartBtn">PLAY AGAIN</button>
+            </div>
+        </div>
+        <div class="sidebar">
+            <div class="panel">
+                <h2>Score</h2>
+                <div class="stat">
+                    <span class="stat-value" id="score">0</span>
+                </div>
+            </div>
+            <div class="panel">
+                <h2>Level</h2>
+                <div class="stat">
+                    <span class="stat-value" id="level">1</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Next:</span>
+                    <span class="stat-value" id="nextLevel">1000</span>
+                </div>
+            </div>
+            <div class="panel">
+                <h2>Stats</h2>
+                <div class="stat">
+                    <span class="stat-label">Lines:</span>
+                    <span class="stat-value" id="linesCleared">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Combo:</span>
+                    <span class="stat-value" id="combo">0</span>
+                </div>
+            </div>
+            <div class="panel controls">
+                <h2>Controls</h2>
+                <div><kbd>←</kbd> <kbd>→</kbd> Move</div>
+                <div><kbd>Space</kbd> Rotate</div>
+                <div><kbd>↓</kbd> Soft Drop</div>
+                <div><kbd>P</kbd> Pause</div>
+                <div><kbd>R</kbd> Restart</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        'use strict';
+
+        // ============================================
+        // CONSTANTS & CONFIGURATION
+        // ============================================
+        const CONFIG = {
+            COLS: 6,
+            ROWS: 13,
+            CELL_SIZE: 48,
+            BOARD_PADDING: 24,
+            COLORS: ['#ff4757', '#3742fa', '#2ed573', '#ffa502', '#a55eea', '#ff6348'],
+            COLOR_NAMES: ['red', 'blue', 'green', 'orange', 'purple', 'pink'],
+            INITIAL_DROP_SPEED: 800,
+            DROP_SPEED_DECREASE: 50,
+            SOFT_DROP_SPEED: 50,
+            LOCK_DELAY: 500,
+            POINTS_PER_GEM: 10,
+            LEVEL_THRESHOLD: 1000,
+            MIN_MATCH: 3,
+            ANIMATION_DURATION: 300
+        };
+
+        // ============================================
+        // GEM COLORS UTILITY
+        // ============================================
+        class GemColors {
+            static random() {
+                return Math.floor(Math.random() * CONFIG.COLORS.length);
+            }
+
+            static getColor(index) {
+                return CONFIG.COLORS[index];
+            }
+        }
+
+        // ============================================
+        // PIECE CLASS - Falling column of gems
+        // ============================================
+        class Piece {
+            constructor(col = Math.floor(CONFIG.COLS / 2)) {
+                this.col = col;
+                this.row = 0;
+                this.gems = [
+                    GemColors.random(),
+                    GemColors.random(),
+                    GemColors.random()
+                ];
+            }
+
+            rotate() {
+                // Rotate gems: bottom -> top, middle -> bottom, top -> middle
+                const temp = this.gems[2];
+                this.gems[2] = this.gems[1];
+                this.gems[1] = this.gems[0];
+                this.gems[0] = temp;
+            }
+
+            moveLeft() {
+                if (this.col > 0) {
+                    this.col--;
+                    return true;
+                }
+                return false;
+            }
+
+            moveRight() {
+                if (this.col < CONFIG.COLS - 1) {
+                    this.col++;
+                    return true;
+                }
+                return false;
+            }
+
+            moveDown() {
+                this.row++;
+            }
+
+            getGemPositions() {
+                return [
+                    { row: this.row, col: this.col, color: this.gems[0] },
+                    { row: this.row + 1, col: this.col, color: this.gems[1] },
+                    { row: this.row + 2, col: this.col, color: this.gems[2] }
+                ];
+            }
+        }
+
+        // ============================================
+        // BOARD CLASS - Grid state and logic
+        // ============================================
+        class Board {
+            constructor() {
+                this.grid = Array(CONFIG.ROWS).fill(null).map(() => Array(CONFIG.COLS).fill(null));
+            }
+
+            isValidPosition(row, col) {
+                return row >= 0 && row < CONFIG.ROWS && col >= 0 && col < CONFIG.COLS;
+            }
+
+            canPieceFit(piece) {
+                const positions = piece.getGemPositions();
+                return positions.every(pos => {
+                    return this.isValidPosition(pos.row, pos.col) && 
+                           this.grid[pos.row][pos.col] === null;
+                });
+            }
+
+            lockPiece(piece) {
+                const positions = piece.getGemPositions();
+                for (const pos of positions) {
+                    if (pos.row >= 0 && pos.row < CONFIG.ROWS) {
+                        this.grid[pos.row][pos.col] = pos.color;
+                    }
+                }
+            }
+
+            findMatches() {
+                const matched = new Set();
+
+                // Helper to check a sequence
+                const checkSequence = (cells) => {
+                    if (cells.length < CONFIG.MIN_MATCH) return;
+                    
+                    let current = { color: null, positions: [] };
+                    
+                    for (const cell of cells) {
+                        if (cell.color === null) {
+                            if (current.positions.length >= CONFIG.MIN_MATCH) {
+                                current.positions.forEach(pos => matched.add(`${pos.row},${pos.col}`));
+                            }
+                            current = { color: null, positions: [] };
+                        } else if (cell.color === current.color) {
+                            current.positions.push(cell);
+                        } else {
+                            if (current.positions.length >= CONFIG.MIN_MATCH) {
+                                current.positions.forEach(pos => matched.add(`${pos.row},${pos.col}`));
+                            }
+                            current = { color: cell.color, positions: [cell] };
+                        }
+                    }
+                    
+                    if (current.positions.length >= CONFIG.MIN_MATCH) {
+                        current.positions.forEach(pos => matched.add(`${pos.row},${pos.col}`));
+                    }
+                };
+
+                // Check horizontal
+                for (let row = 0; row < CONFIG.ROWS; row++) {
+                    const cells = [];
+                    for (let col = 0; col < CONFIG.COLS; col++) {
+                        cells.push({ row, col, color: this.grid[row][col] });
+                    }
+                    checkSequence(cells);
+                }
+
+                // Check vertical
+                for (let col = 0; col < CONFIG.COLS; col++) {
+                    const cells = [];
+                    for (let row = 0; row < CONFIG.ROWS; row++) {
+                        cells.push({ row, col, color: this.grid[row][col] });
+                    }
+                    checkSequence(cells);
+                }
+
+                // Check diagonals (bottom-left to top-right)
+                for (let startCol = 0; startCol < CONFIG.COLS; startCol++) {
+                    const cells = [];
+                    let row = CONFIG.ROWS - 1, col = startCol;
+                    while (row >= 0 && col < CONFIG.COLS) {
+                        cells.push({ row, col, color: this.grid[row][col] });
+                        row--;
+                        col++;
+                    }
+                    checkSequence(cells);
+                }
+
+                for (let startRow = CONFIG.ROWS - 2; startRow >= 0; startRow--) {
+                    const cells = [];
+                    let row = startRow, col = 0;
+                    while (row >= 0 && col < CONFIG.COLS) {
+                        cells.push({ row, col, color: this.grid[row][col] });
+                        row--;
+                        col++;
+                    }
+                    checkSequence(cells);
+                }
+
+                // Check diagonals (top-left to bottom-right)
+                for (let startCol = 0; startCol < CONFIG.COLS; startCol++) {
+                    const cells = [];
+                    let row = 0, col = startCol;
+                    while (row < CONFIG.ROWS && col < CONFIG.COLS) {
+                        cells.push({ row, col, color: this.grid[row][col] });
+                        row++;
+                        col++;
+                    }
+                    checkSequence(cells);
+                }
+
+                for (let startRow = 1; startRow < CONFIG.ROWS; startRow++) {
+                    const cells = [];
+                    let row = startRow, col = 0;
+                    while (row < CONFIG.ROWS && col < CONFIG.COLS) {
+                        cells.push({ row, col, color: this.grid[row][col] });
+                        row++;
+                        col++;
+                    }
+                    checkSequence(cells);
+                }
+
+                return Array.from(matched).map(pos => {
+                    const [row, col] = pos.split(',').map(Number);
+                    return { row, col };
+                });
+            }
+
+            clearMatches(matches) {
+                for (const match of matches) {
+                    this.grid[match.row][match.col] = null;
+                }
+                return matches.length;
+            }
+
+            applyGravity() {
+                let moved = false;
+                
+                for (let col = 0; col < CONFIG.COLS; col++) {
+                    let writeRow = CONFIG.ROWS - 1;
+                    
+                    for (let row = CONFIG.ROWS - 1; row >= 0; row--) {
+                        if (this.grid[row][col] !== null) {
+                            if (row !== writeRow) {
+                                this.grid[writeRow][col] = this.grid[row][col];
+                                this.grid[row][col] = null;
+                                moved = true;
+                            }
+                            writeRow--;
+                        }
+                    }
+                }
+                
+                return moved;
+            }
+
+            isTopRowOccupied() {
+                return this.grid[0].some(cell => cell !== null);
+            }
+        }
+
+        // ============================================
+        // RENDERER CLASS - Canvas drawing operations
+        // ============================================
+        class Renderer {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d', { alpha: false });
+                this.animatingGems = [];
+            }
+
+            clear() {
+                this.ctx.fillStyle = '#0f0f1e';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            drawGrid() {
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                this.ctx.lineWidth = 1;
+
+                for (let row = 0; row <= CONFIG.ROWS; row++) {
+                    const y = CONFIG.BOARD_PADDING + row * CONFIG.CELL_SIZE;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(CONFIG.BOARD_PADDING, y);
+                    this.ctx.lineTo(CONFIG.BOARD_PADDING + CONFIG.COLS * CONFIG.CELL_SIZE, y);
+                    this.ctx.stroke();
+                }
+
+                for (let col = 0; col <= CONFIG.COLS; col++) {
+                    const x = CONFIG.BOARD_PADDING + col * CONFIG.CELL_SIZE;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, CONFIG.BOARD_PADDING);
+                    this.ctx.lineTo(x, CONFIG.BOARD_PADDING + CONFIG.ROWS * CONFIG.CELL_SIZE);
+                    this.ctx.stroke();
+                }
+            }
+
+            drawGem(row, col, colorIndex, alpha = 1) {
+                const x = CONFIG.BOARD_PADDING + col * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2;
+                const y = CONFIG.BOARD_PADDING + row * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2;
+                const radius = CONFIG.CELL_SIZE * 0.38;
+
+                const color = GemColors.getColor(colorIndex);
+
+                // Shadow
+                this.ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                this.ctx.shadowBlur = 10;
+                this.ctx.shadowOffsetX = 2;
+                this.ctx.shadowOffsetY = 2;
+
+                // Gem body with gradient
+                const gradient = this.ctx.createRadialGradient(
+                    x - radius * 0.3, y - radius * 0.3, radius * 0.1,
+                    x, y, radius
+                );
+                
+                gradient.addColorStop(0, this.lightenColor(color, 40));
+                gradient.addColorStop(0.7, color);
+                gradient.addColorStop(1, this.darkenColor(color, 20));
+
+                this.ctx.globalAlpha = alpha;
+                this.ctx.fillStyle = gradient;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, radius, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Reset shadow
+                this.ctx.shadowColor = 'transparent';
+                this.ctx.shadowBlur = 0;
+                this.ctx.shadowOffsetX = 0;
+                this.ctx.shadowOffsetY = 0;
+
+                // Highlight
+                const highlightGradient = this.ctx.createRadialGradient(
+                    x - radius * 0.4, y - radius * 0.4, 0,
+                    x - radius * 0.4, y - radius * 0.4, radius * 0.5
+                );
+                highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+                this.ctx.fillStyle = highlightGradient;
+                this.ctx.beginPath();
+                this.ctx.arc(x - radius * 0.25, y - radius * 0.25, radius * 0.4, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Border
+                this.ctx.strokeStyle = this.darkenColor(color, 30);
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, radius, 0, Math.PI * 2);
+                this.ctx.stroke();
+
+                this.ctx.globalAlpha = 1;
+            }
+
+            drawBoard(board) {
+                for (let row = 0; row < CONFIG.ROWS; row++) {
+                    for (let col = 0; col < CONFIG.COLS; col++) {
+                        if (board.grid[row][col] !== null) {
+                            this.drawGem(row, col, board.grid[row][col]);
+                        }
+                    }
+                }
+            }
+
+            drawPiece(piece) {
+                const positions = piece.getGemPositions();
+                for (const pos of positions) {
+                    if (pos.row >= 0) {
+                        this.drawGem(pos.row, pos.col, pos.color, 0.95);
+                    }
+                }
+            }
+
+            drawMatchAnimation(matches, progress) {
+                const scale = 1 - progress;
+                const alpha = 1 - progress;
+
+                for (const match of matches) {
+                    const x = CONFIG.BOARD_PADDING + match.col * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2;
+                    const y = CONFIG.BOARD_PADDING + match.row * CONFIG.CELL_SIZE + CONFIG.CELL_SIZE / 2;
+                    const radius = CONFIG.CELL_SIZE * 0.38 * scale;
+
+                    this.ctx.globalAlpha = alpha;
+                    this.ctx.fillStyle = '#fff';
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, radius * 1.2, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.globalAlpha = 1;
+                }
+            }
+
+            lightenColor(color, percent) {
+                const num = parseInt(color.replace("#", ""), 16);
+                const amt = Math.round(2.55 * percent);
+                const R = Math.min(255, (num >> 16) + amt);
+                const G = Math.min(255, (num >> 8 & 0x00FF) + amt);
+                const B = Math.min(255, (num & 0x0000FF) + amt);
+                return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+            }
+
+            darkenColor(color, percent) {
+                const num = parseInt(color.replace("#", ""), 16);
+                const amt = Math.round(2.55 * percent);
+                const R = Math.max(0, (num >> 16) - amt);
+                const G = Math.max(0, (num >> 8 & 0x00FF) - amt);
+                const B = Math.max(0, (num & 0x0000FF) - amt);
+                return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+            }
+        }
+
+        // ============================================
+        // GAME CLASS - Main controller
+        // ============================================
+        class Game {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.renderer = new Renderer(canvas);
+                this.board = new Board();
+                this.currentPiece = null;
+                this.nextPiece = null;
+                
+                // Game state
+                this.score = 0;
+                this.level = 1;
+                this.linesCleared = 0;
+                this.combo = 0;
+                this.gameOver = false;
+                this.paused = false;
+                
+                // Timing
+                this.lastDropTime = 0;
+                this.dropSpeed = CONFIG.INITIAL_DROP_SPEED;
+                this.softDropping = false;
+                
+                // Animation
+                this.animationState = null;
+                this.animationStart = 0;
+                
+                // Input handling
+                this.keys = {};
+                this.lastMoveTime = 0;
+                this.moveDelay = 150;
+                
+                this.init();
+            }
+
+            init() {
+                this.currentPiece = new Piece();
+                this.bindEvents();
+                this.updateUI();
+                this.lastDropTime = performance.now();
+                this.gameLoop();
+            }
+
+            bindEvents() {
+                document.addEventListener('keydown', (e) => this.handleKeyDown(e));
+                document.addEventListener('keyup', (e) => this.handleKeyUp(e));
+                document.getElementById('restartBtn').addEventListener('click', () => this.restart());
+            }
+
+            handleKeyDown(e) {
+                if (this.gameOver || this.paused && e.key.toLowerCase() !== 'p') return;
+                
+                if (this.keys[e.key]) return;
+                this.keys[e.key] = true;
+
+                switch(e.key.toLowerCase()) {
+                    case 'arrowleft':
+                        e.preventDefault();
+                        this.movePiece(-1);
+                        break;
+                    case 'arrowright':
+                        e.preventDefault();
+                        this.movePiece(1);
+                        break;
+                    case ' ':
+                        e.preventDefault();
+                        this.rotatePiece();
+                        break;
+                    case 'arrowdown':
+                        e.preventDefault();
+                        this.softDropping = true;
+                        break;
+                    case 'p':
+                        e.preventDefault();
+                        this.togglePause();
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        this.restart();
+                        break;
+                }
+            }
+
+            handleKeyUp(e) {
+                this.keys[e.key] = false;
+                if (e.key === 'ArrowDown') {
+                    this.softDropping = false;
+                }
+            }
+
+            movePiece(direction) {
+                if (this.animationState) return;
+
+                const tempPiece = new Piece();
+                tempPiece.col = this.currentPiece.col + direction;
+                tempPiece.row = this.currentPiece.row;
+                tempPiece.gems = [...this.currentPiece.gems];
+
+                if (this.board.canPieceFit(tempPiece)) {
+                    this.currentPiece.col = tempPiece.col;
+                }
+            }
+
+            rotatePiece() {
+                if (this.animationState) return;
+                this.currentPiece.rotate();
+            }
+
+            togglePause() {
+                this.paused = !this.paused;
+            }
+
+            dropPiece() {
+                if (this.animationState) return;
+
+                const tempPiece = new Piece();
+                tempPiece.col = this.currentPiece.col;
+                tempPiece.row = this.currentPiece.row + 1;
+                tempPiece.gems = [...this.currentPiece.gems];
+
+                if (this.board.canPieceFit(tempPiece)) {
+                    this.currentPiece.moveDown();
+                    return true;
+                } else {
+                    this.lockAndProcess();
+                    return false;
+                }
+            }
+
+            async lockAndProcess() {
+                this.board.lockPiece(this.currentPiece);
+                
+                let totalMatches = 0;
+                let chainLevel = 0;
+
+                while (true) {
+                    const matches = this.board.findMatches();
+                    
+                    if (matches.length === 0) break;
+
+                    // Animate matches
+                    await this.animateMatches(matches);
+                    
+                    const cleared = this.board.clearMatches(matches);
+                    totalMatches += cleared;
+                    chainLevel++;
+                    
+                    // Update score with combo multiplier
+                    const points = cleared * CONFIG.POINTS_PER_GEM * chainLevel;
+                    this.score += points;
+                    this.linesCleared += Math.floor(cleared / 3);
+                    this.combo = chainLevel;
+                    
+                    this.updateUI();
+                    
+                    // Apply gravity
+                    this.board.applyGravity();
+                    await this.sleep(150);
+                }
+
+                // Reset combo if no matches
+                if (totalMatches === 0) {
+                    this.combo = 0;
+                    this.updateUI();
+                }
+
+                // Level up
+                const newLevel = Math.floor(this.score / CONFIG.LEVEL_THRESHOLD) + 1;
+                if (newLevel > this.level) {
+                    this.level = newLevel;
+                    this.dropSpeed = Math.max(100, CONFIG.INITIAL_DROP_SPEED - (this.level - 1) * CONFIG.DROP_SPEED_DECREASE);
+                    this.updateUI();
+                }
+
+                // Spawn new piece
+                this.currentPiece = new Piece();
+                
+                if (!this.board.canPieceFit(this.currentPiece)) {
+                    this.endGame();
+                }
+            }
+
+            async animateMatches(matches) {
+                this.animationState = { matches, type: 'clear' };
+                this.animationStart = performance.now();
+                await this.sleep(CONFIG.ANIMATION_DURATION);
+                this.animationState = null;
+            }
+
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            endGame() {
+                this.gameOver = true;
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('finalLevel').textContent = this.level;
+                document.getElementById('overlay').classList.add('active');
+            }
+
+            restart() {
+                this.board = new Board();
+                this.currentPiece = new Piece();
+                this.score = 0;
+                this.level = 1;
+                this.linesCleared = 0;
+                this.combo = 0;
+                this.gameOver = false;
+                this.paused = false;
+                this.dropSpeed = CONFIG.INITIAL_DROP_SPEED;
+                this.lastDropTime = performance.now();
+                this.animationState = null;
+                document.getElementById('overlay').classList.remove('active');
+                this.updateUI();
+            }
+
+            updateUI() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('level').textContent = this.level;
+                document.getElementById('nextLevel').textContent = this.level * CONFIG.LEVEL_THRESHOLD;
+                document.getElementById('linesCleared').textContent = this.linesCleared;
+                document.getElementById('combo').textContent = this.combo > 0 ? `x${this.combo}` : '0';
+            }
+
+            update(currentTime) {
+                if (this.gameOver || this.paused || this.animationState) return;
+
+                const speed = this.softDropping ? CONFIG.SOFT_DROP_SPEED : this.dropSpeed;
+                
+                if (currentTime - this.lastDropTime > speed) {
+                    this.dropPiece();
+                    this.lastDropTime = currentTime;
+                }
+            }
+
+            render() {
+                this.renderer.clear();
+                this.renderer.drawGrid();
+                this.renderer.drawBoard(this.board);
+                
+                if (this.currentPiece && !this.gameOver) {
+                    this.renderer.drawPiece(this.currentPiece);
+                }
+
+                // Draw animations
+                if (this.animationState && this.animationState.type === 'clear') {
+                    const elapsed = performance.now() - this.animationStart;
+                    const progress = Math.min(1, elapsed / CONFIG.ANIMATION_DURATION);
+                    this.renderer.drawMatchAnimation(this.animationState.matches, progress);
+                }
+            }
+
+            gameLoop() {
+                const currentTime = performance.now();
+                
+                this.update(currentTime);
+                this.render();
+
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+
+        // ============================================
+        // INITIALIZE GAME
+        // ============================================
+        window.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('gameCanvas');
+            new Game(canvas);
+        });
+    </script>
+</body>
+</html>
+
